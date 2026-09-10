@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Intrinsix — Digital Studio & Design Lab</title>
+
+  <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================
+       RESET & ROOT VARIABLES
+    ========================================================== */
+    :root {
+      --bg-dark: #0f1013;
+      --text-light: #faf9f6;
+      --muted-dark: #8e8e8b;
+      --line-dark: #222328;
+      --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --anim-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    html, body {
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+      font-family: var(--font-display);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      scroll-behavior: smooth;
+    }
+
+    ::selection {
+      background: var(--text-light);
+      color: var(--bg-dark);
+    }
+
+    /* Subtle cursor tracker */
+    .cursor-dot {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 8px;
+      background: var(--text-light);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.15s ease-out, opacity 0.3s ease;
+    }
+
+    /* ==========================================================
+       THE LOADER: 0 - 100 COUNTER & STATUS LABEL
+    ========================================================== */
+    #loader-overlay {
+      position: fixed;
+      bottom: clamp(2rem, 5vw, 4rem);
+      right: clamp(2rem, 5vw, 4rem);
+      z-index: 10000;
+      pointer-events: none;
+      transition: opacity 0.7s var(--anim-ease), transform 0.7s var(--anim-ease);
+    }
+
+    #loader-overlay.loaded {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .loader-counter {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 7vw, 6rem);
+      font-weight: 300;
+      line-height: 1;
+      color: var(--text-light);
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.04em;
+    }
+
+    #initStatus {
+      transition: opacity 0.7s var(--anim-ease), transform 0.7s var(--anim-ease);
+      display: inline-block;
+    }
+
+    #initStatus.loaded {
+      opacity: 0;
+      transform: translateY(15px);
+      pointer-events: none;
+    }
+
+    /* ==========================================================
+       HEADER & NAVIGATION
+    ========================================================== */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: clamp(1.8rem, 4vw, 3rem) clamp(2rem, 5vw, 4rem);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: transparent;
+      z-index: 1000;
+      mix-blend-mode: difference;
+    }
+
+    .brand-logo {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--text-light);
+      transition: opacity 0.3s ease;
+    }
+
+    .brand-logo:hover {
+      opacity: 0.7;
+    }
+
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: clamp(1.2rem, 3vw, 2.5rem);
+      align-items: center;
+    }
+
+    nav a {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-decoration: none;
+      color: var(--text-light);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      position: relative;
+      padding: 0.3rem 0;
+      transition: opacity 0.3s ease;
+    }
+
+    nav a:hover,
+    nav a.active {
+      opacity: 1;
+    }
+
+    nav a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: var(--text-light);
+      transition: width 0.35s var(--anim-ease);
+    }
+
+    nav a:hover::after,
+    nav a.active::after {
+      width: 100%;
+    }
+
+    /* ==========================================================
+       PAGE CONTAINER & DIRECT ANIMATIONS
+    ========================================================== */
+    main {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .page {
+      display: none;
+      opacity: 0;
+      width: 100%;
+    }
+
+    .page.current {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Outgoing Page Animation */
+    .page.anim-out {
+      display: block;
+      animation: pageSlideExit 0.55s var(--anim-ease) forwards;
+      pointer-events: none;
+    }
+
+    /* Incoming Page Animation */
+    .page.anim-in {
+      display: block;
+      animation: pageSlideEnter 0.65s var(--anim-ease) forwards;
+    }
+
+    @keyframes pageSlideExit {
+      0% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        filter: blur(0px);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(-40px) scale(0.98);
+        filter: blur(4px);
+      }
+    }
+
+    @keyframes pageSlideEnter {
+      0% {
+        opacity: 0;
+        transform: translateX(60px) scale(1.02);
+        filter: blur(6px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        filter: blur(0px);
+      }
+    }
+
+    /* ==========================================================
+       PAGE 1: STUDIO (HERO)
+    ========================================================== */
+    .hero-screenshot-frame {
+      width: 100vw;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(2rem, 5vw, 4rem);
+      position: relative;
+      box-sizing: border-box;
+      background-color: var(--bg-dark);
+    }
+
+    .hero-top-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      opacity: 0.85;
+      padding-top: 0.5rem;
+    }
+
+    .hero-center-brand {
+      position: relative;
+      padding: clamp(4rem, 10vw, 8rem) 0;
+    }
+
+    .hero-brand-title {
+      font-size: clamp(3rem, 10vw, 8.5rem);
+      font-weight: 300;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      line-height: 0.9;
+      color: var(--text-light);
+    }
+
+    .hero-bottom-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text-light);
+      letter-spacing: 0.08em;
+      min-height: 1.5em;
+    }
+
+    .studio-body {
+      max-width: 1550px;
+      margin: 0 auto;
+      padding: clamp(5rem, 10vw, 10rem) clamp(2rem, 5vw, 4rem);
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted-dark);
+      margin-bottom: 3rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .section-label::before {
+      content: '';
+      width: 24px;
+      height: 1px;
+      background: var(--muted-dark);
+    }
+
+    .studio-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 3rem;
+      border-top: 1px solid var(--line-dark);
+      padding-top: 4rem;
+    }
+
+    .studio-col-meta {
+      grid-column: span 4;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.8;
+      color: var(--muted-dark);
+    }
+
+    .studio-col-content {
+      grid-column: 5 / -1;
+      display: flex;
+      flex-direction: column;
+      gap: 4rem;
+    }
+
+    .manifesto-text {
+      font-size: clamp(1.5rem, 3vw, 2.6rem);
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.35;
+      max-width: 32ch;
+    }
+
+    .manifesto-text span {
+      color: var(--muted-dark);
+    }
+
+    .stats-row {
+      display: flex;
+      gap: clamp(2rem, 6vw, 6rem);
+      border-top: 1px solid var(--line-dark);
+      padding-top: 2rem;
+    }
+
+    .stat-item h3 {
+      font-size: clamp(2.4rem, 4vw, 4rem);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+    }
+
+    .stat-item p {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 0.5rem;
+    }
+
+    /* ==========================================================
+       PAGES 2, 3, 4 COMMON STYLES
+    ========================================================== */
+    .page-inner {
+      max-width: 1550px;
+      margin: 0 auto;
+      padding: clamp(8rem, 14vw, 12rem) clamp(2rem, 5vw, 4rem) clamp(4rem, 8vw, 8rem);
+      min-height: 100vh;
+    }
+
+    h1.page-title {
+      font-size: clamp(3rem, 7.5vw, 7.5rem);
+      font-weight: 300;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      margin-bottom: clamp(3rem, 6vw, 6rem);
+      max-width: 14ch;
+    }
+
+    /* Page 2: Capabilities */
+    .capabilities-list {
+      margin-top: 4rem;
+      border-bottom: 1px solid var(--line-dark);
+    }
+
+    .capability-row {
+      border-top: 1px solid var(--line-dark);
+      padding: clamp(2.5rem, 4vw, 4rem) 0;
+      display: grid;
+      grid-template-columns: 80px 1.5fr 2fr;
+      align-items: baseline;
+      transition: background 0.4s ease, padding 0.4s ease;
+      cursor: pointer;
+    }
+
+    .capability-row:hover {
+      padding-left: 1.5rem;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .capability-num {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--muted-dark);
+    }
+
+    .capability-title {
+      font-size: clamp(1.6rem, 2.6vw, 2.4rem);
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+
+    .capability-desc {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--muted-dark);
+      max-width: 48ch;
+    }
+
+    /* Page 3: Selected Works */
+    .works-container {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(5rem, 9vw, 9rem);
+      margin-top: 4rem;
+    }
+
+    .work-card {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 3rem;
+      align-items: center;
+      text-decoration: none;
+      color: var(--text-light);
+    }
+
+    .work-media {
+      grid-column: span 7;
+      height: clamp(280px, 40vw, 480px);
+      background-color: var(--line-dark);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .work-media-inner {
+      width: 100%;
+      height: 100%;
+      background: #18191e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      color: var(--muted-dark);
+      transition: transform 0.8s var(--anim-ease);
+    }
+
+    .work-card:hover .work-media-inner {
+      transform: scale(1.04);
+    }
+
+    .work-details {
+      grid-column: 8 / -1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .work-details .meta {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      color: var(--muted-dark);
+    }
+
+    .work-details h3 {
+      font-size: clamp(2rem, 3.2vw, 3rem);
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+
+    .work-details p {
+      color: var(--muted-dark);
+      line-height: 1.65;
+      font-size: 0.95rem;
+      max-width: 42ch;
+    }
+
+    .work-card.reverse .work-media {
+      grid-column: 6 / -1;
+      order: 2;
+    }
+    .work-card.reverse .work-details {
+      grid-column: span 5;
+      order: 1;
+    }
+
+    /* Page 4: Contact */
+    .contact-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(4rem, 8vw, 9rem);
+      margin-top: 3rem;
+    }
+
+    .contact-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .contact-direct h2 {
+      font-size: clamp(2rem, 3.5vw, 3.2rem);
+      font-weight: 300;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      margin-bottom: 2.5rem;
+    }
+
+    .email-link {
+      display: inline-block;
+      font-size: clamp(1.2rem, 2.2vw, 1.8rem);
+      color: var(--text-light);
+      text-decoration: none;
+      border-bottom: 1px solid var(--text-light);
+      padding-bottom: 0.3rem;
+      transition: opacity 0.3s ease;
+    }
+
+    .email-link:hover {
+      opacity: 0.6;
+    }
+
+    .contact-form {
+      display: flex;
+      flex-direction: column;
+      gap: 3.2rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted-dark);
+      margin-bottom: 0.8rem;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--line-dark);
+      padding: 0.8rem 0;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--text-light);
+      transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--text-light);
+    }
+
+    .submit-btn {
+      align-self: flex-start;
+      background: var(--text-light);
+      color: var(--bg-dark);
+      border: none;
+      padding: 1.2rem 3.2rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.3s ease, opacity 0.3s ease;
+    }
+
+    .submit-btn:hover {
+      opacity: 0.9;
+    }
+
+    /* Footer */
+    footer {
+      padding: clamp(3rem, 6vw, 5rem) clamp(2rem, 5vw, 4rem);
+      max-width: 1550px;
+      margin: 0 auto;
+      border-top: 1px solid var(--line-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--muted-dark);
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .studio-grid {
+        grid-template-columns: 1fr;
+      }
+      .studio-col-meta, .studio-col-content {
+        grid-column: span 1;
+      }
+      .capability-row {
+        grid-template-columns: 60px 1fr;
+        row-gap: 1rem;
+      }
+      .capability-desc {
+        grid-column: 2 / -1;
+      }
+      .work-card, .work-card.reverse {
+        grid-template-columns: 1fr;
+      }
+      .work-media, .work-card.reverse .work-media {
+        grid-column: 1 / -1;
+        order: 1;
+      }
+      .work-details, .work-card.reverse .work-details {
+        grid-column: 1 / -1;
+        order: 2;
+      }
+      .contact-wrapper {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Small Cursor Follower -->
+  <div class="cursor-dot" id="cursorDot"></div>
+
+  <!-- LOADER: ONLY THE 0 - 100 COUNTER IN THE BOTTOM RIGHT -->
+  <div id="loader-overlay">
+    <div class="loader-counter" id="loaderCount">000%</div>
+  </div>
+
+  <!-- Top Navigation -->
+  <header>
+    <a href="#studio" class="brand-logo nav-trigger" data-target="studio">
+      Web Intrinsix
+    </a>
+    <nav>
+      <ul>
+        <li><a href="#studio" class="nav-trigger active" data-target="studio">Studio</a></li>
+        <li><a href="#capabilities" class="nav-trigger" data-target="capabilities">Capabilities</a></li>
+        <li><a href="#works" class="nav-trigger" data-target="works">Works</a></li>
+        <li><a href="#contact" class="nav-trigger" data-target="contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ================= PAGE 1: STUDIO ================= -->
+    <section id="studio" class="page current">
+      
+      <div class="hero-screenshot-frame">
+        <div class="hero-top-labels">
+        </div>
+
+        <div class="hero-center-brand">
+          <h1 class="hero-brand-title">WEB INTRINSIX</h1>
+        </div>
+
+        <div class="hero-bottom-labels">
+          <div id="initStatus">[ Initializing Architecture ]</div>
+          <div style="opacity: 0; pointer-events: none;" aria-hidden="true">100%</div>
+        </div>
+      </div>
+
+      <div class="studio-body">
+        <div class="section-label">Architectural Digital Practice</div>
+        <div class="studio-grid">
+          <div class="studio-col-meta">
+            <p>EST. 2026</p>
+            <p>GLOBAL / DISTRIBUTED</p>
+            <p>CODEBASE & INTERFACE</p>
+          </div>
+          <div class="studio-col-content">
+            <div class="manifesto-text">
+              "Eliminate ornament until only <span>intent, utility, and pure digital weight</span> remain."
+            </div>
+
+            <div class="stats-row">
+              <div class="stat-item">
+                <h3>99.8%</h3>
+                <p>Performance Metric</p>
+              </div>
+              <div class="stat-item">
+                <h3>0.02s</h3>
+                <p>Interaction Response</p>
+              </div>
+              <div class="stat-item">
+                <h3>100%</h3>
+                <p>Engineered In-House</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 2: CAPABILITIES ================= -->
+    <section id="capabilities" class="page">
+      <div class="page-inner">
+        <div class="section-label">Scope of Services</div>
+        <h1 class="page-title">Synthesis of design purity and software craft.</h1>
+
+        <div class="capabilities-list">
+          <div class="capability-row">
+            <span class="capability-num">/01</span>
+            <h2 class="capability-title">Brand & Art Direction</h2>
+            <p class="capability-desc">
+              Visual typography systems, spatial UI frameworks, motion language, and design tokens built intentionally for interactive mediums.
+            </p>
+          </div>
+
+          <div class="capability-row">
+            <span class="capability-num">/02</span>
+            <h2 class="capability-title">Interface Engineering</h2>
+            <p class="capability-desc">
+              Bespoke frontend construction using modern web standards, performant shader canvases, responsive logic, and accessibility-first semantics.
+            </p>
+          </div>
+
+          <div class="capability-row">
+            <span class="capability-num">/03</span>
+            <h2 class="capability-title">Full-Stack Platforms</h2>
+            <p class="capability-desc">
+              Headless content architectures, custom micro-APIs, scalable e-commerce infrastructure, and real-time interactive experiences.
+            </p>
+          </div>
+
+          <div class="capability-row">
+            <span class="capability-num">/04</span>
+            <h2 class="capability-title">Creative Tech & Motion</h2>
+            <p class="capability-desc">
+              Experimental transitions, custom WebGL modules, procedural animations, and micro-interactions optimized down to 60 frames per second.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 3: SELECTED WORKS ================= -->
+    <section id="works" class="page">
+      <div class="page-inner">
+        <div class="section-label">Portfolio Archive</div>
+        <h1 class="page-title">Case artifacts & delivered ecosystems.</h1>
+
+        <div class="works-container">
+          <article class="work-card">
+            <div class="work-media">
+              <div class="work-media-inner">[ KINETIC ARCHIVE — 2026 ]</div>
+            </div>
+            <div class="work-details">
+              <span class="meta">ART DIRECTION + DEVELOPMENT</span>
+              <h3>Vanguard Spatial</h3>
+              <p>A procedural museum index showcasing spatial installations through multi-layered canvas renderings and real-time data filtering.</p>
+            </div>
+          </article>
+
+          <article class="work-card reverse">
+            <div class="work-media">
+              <div class="work-media-inner">[ E-COMMERCE ENGINE — 2025 ]</div>
+            </div>
+            <div class="work-details">
+              <span class="meta">HEADLESS ARCHITECTURE</span>
+              <h3>Modus Monolith</h3>
+              <p>High-friction architectural garment studio with zero layout shifting, millisecond response times, and an editorial inventory structure.</p>
+            </div>
+          </article>
+
+          <article class="work-card">
+            <div class="work-media">
+              <div class="work-media-inner">[ FINTECH INTERACTION — 2025 ]</div>
+            </div>
+            <div class="work-details">
+              <span class="meta">SYSTEM DESIGN + REACT</span>
+              <h3>Synthetix Core</h3>
+              <p>An enterprise data terminal designed for algorithmic liquidity networks, translating complex multi-node streams into readable whitespace.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 4: CONTACT ================= -->
+    <section id="contact" class="page">
+      <div class="page-inner">
+        <div class="section-label">Engagement & Inquiries</div>
+        <h1 class="page-title">Initiate a dialogue.</h1>
+
+        <div class="contact-wrapper">
+          <div class="contact-info">
+            <div class="contact-direct">
+              <h2>Let’s construct your next digital asset.</h2>
+              <a href="mailto:contact@webintrinsix.studio" class="email-link">contact@webintrinsix.studio</a>
+            </div>
+
+            <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted-dark); line-height: 1.8; margin-top: 2rem;">
+              <p>AVAILABILITY: Q3/Q4 2026</p>
+              <p>DIRECT OFFICE: +1 (800) 414-9210</p>
+              <p>LOCATIONS: SAN FRANCISCO / TOKYO / BERLIN</p>
+            </div>
+          </div>
+
+          <form class="contact-form" onsubmit="event.preventDefault(); alert('Message dispatched to Web Intrinsix.');">
+            <div class="form-group">
+              <label for="name">Identifier / Name</label>
+              <input type="text" id="name" required placeholder="Jane Doe" autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+              <label for="email">Communication Channel / Email</label>
+              <input type="email" id="email" required placeholder="jane@company.com" autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+              <label for="scope">Project Scope</label>
+              <input type="text" id="scope" placeholder="Full web platform build & branding" autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+              <label for="message">Transmission / Details</label>
+              <textarea id="message" rows="4" placeholder="Outline your objectives and timeline..."></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn">Transmit Inquiry</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Global Footer -->
+  <footer>
+    <span>&copy; 2026 Web Intrinsix. All rights reserved.</span>
+    <span>Form Follows Code</span>
+  </footer>
+
+  <script>
+    // --- 1. Cursor Tracker ---
+    const cursor = document.getElementById('cursorDot');
+    window.addEventListener('mousemove', (e) => {
+      cursor.style.left = `${e.clientX}px`;
+      cursor.style.top = `${e.clientY}px`;
+    });
+
+    // --- 2. Loader Sequence (Counter + Status Text Smooth Fade Out) ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const counterEl = document.getElementById('loaderCount');
+      const loaderOverlay = document.getElementById('loader-overlay');
+      const initStatus = document.getElementById('initStatus');
+      let progress = 0;
+
+      const timer = setInterval(() => {
+        progress += Math.floor(Math.random() * 7) + 3;
+        if (progress > 100) progress = 100;
+
+        counterEl.textContent = `${String(progress).padStart(3, '0')}%`;
+
+        if (progress === 100) {
+          clearInterval(timer);
+          setTimeout(() => {
+            loaderOverlay.classList.add('loaded');
+            if (initStatus) {
+              initStatus.classList.add('loaded');
+            }
+          }, 350);
+        }
+      }, 35);
+    });
+
+    // --- 3. Page Animation System (Direct Page Exit & Enter Animations) ---
+    const navTriggers = document.querySelectorAll('.nav-trigger');
+    let isAnimating = false;
+
+    function switchPage(targetId) {
+      if (isAnimating) return;
+      const currentPage = document.querySelector('.page.current');
+      const targetPage = document.getElementById(targetId);
+
+      if (!targetPage || targetPage === currentPage) return;
+
+      isAnimating = true;
+
+      // Update Nav active classes
+      navTriggers.forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-target') === targetId);
+      });
+
+      // Animate current page out
+      if (currentPage) {
+        currentPage.classList.add('anim-out');
+      }
+
+      setTimeout(() => {
+        if (currentPage) {
+          currentPage.classList.remove('current', 'anim-out');
+        }
+
+        // Animate target page in
+        targetPage.classList.add('current', 'anim-in');
+        window.scrollTo(0, 0);
+
+        setTimeout(() => {
+          targetPage.classList.remove('anim-in');
+          isAnimating = false;
+        }, 650);
+      }, 350);
+    }
+
+    navTriggers.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = link.getAttribute('data-target');
+        switchPage(target);
+      });
+    });
+  </script>
+</body>
+</html>
